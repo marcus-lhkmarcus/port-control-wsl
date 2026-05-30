@@ -7,19 +7,20 @@ Machine-readable guide for AI coding agents working with this repository.
 `port-control-wsl` does two things from inside **WSL2 (Linux)**:
 1. **USB passthrough** via `usbipd` — attach/detach a Windows USB device into WSL.
 2. **Serial console control** — open `/dev/ttyUSB*` / `/dev/ttyS*`, send commands,
-   stream output, log in, run shells. Plus Ingenic IP-camera shortcuts.
+   stream output, log in, run shells (a general COM-port remote shell).
 
-Aimed at embedded development (USB-serial adapters, cameras, SBCs) from WSL2.
+Aimed at embedded development (USB-serial adapters, SBCs, dev boards, routers)
+from WSL2.
 
 ## Entry point
 
 ```
 port_control.py        # CLI
-requirements.txt       # pyserial (serial/camera commands only)
+requirements.txt       # pyserial (serial commands only)
 ```
 
 Dependencies:
-- `pyserial` — needed for `serial-*` and `camera-*`. Not needed for `usb-*`.
+- `pyserial` — needed for `serial-*`. Not needed for `usb-*`.
 - `usbipd-win` (Windows) + the win-admin helper — needed for `usb-attach` /
   `usb-detach` (the elevated `usbipd bind`). `win_admin.py` from
   https://github.com/marcusice/wsl-win-admin-bridge, located via the `WIN_ADMIN`
@@ -40,19 +41,16 @@ python3 port_control.py serial-send <port> "<cmd>" [--baud N] [--wait S] [--json
 python3 port_control.py serial-read <port> [--duration S] [--baud N]
 python3 port_control.py serial-login <port> [--user root] [--password ""] [--baud N]
 python3 port_control.py serial-shell <port> --cmd "<c1>" ["<c2>" ...] [--user] [--password] [--wait] [--baud] [--json]
-
-# Camera (Ingenic IPC; default --port /dev/ttyUSB0 --user root --baud 115200)
-python3 port_control.py camera-stop [--port] [--user] [--password] [--baud]
-python3 port_control.py camera-start [--port] [--baud]
-python3 port_control.py camera-reboot [--port] [--baud]
 ```
 
 Exact subcommand set: `usb-list, usb-attach, usb-detach, serial-list,
-serial-send, serial-read, serial-login, serial-shell, camera-stop, camera-start,
-camera-reboot`. Each `cmd_*` returns an int exit code (0 = success).
+serial-send, serial-read, serial-login, serial-shell`. Each `cmd_*` returns an
+int exit code (0 = success).
 
 Note: for `serial-send`, the command is a positional arg; for `serial-shell`,
-commands are passed via the required `--cmd` (nargs="+").
+commands are passed via the required `--cmd` (nargs="+"). Device-specific
+actions (reboot, kill/start a process) are ordinary commands passed to
+`serial-shell` — there are no per-device subcommands.
 
 ## Preconditions
 
@@ -61,7 +59,7 @@ commands are passed via the required `--cmd` (nargs="+").
   helper present. If absent, `admin_cmd()` raises SystemExit with an install
   hint — surface it; the first bind needs Windows admin and can't be forced from
   WSL. `usb-list` only needs `usbipd.exe` reachable.
-- `serial-*`/`camera-*`: `pip install pyserial`, and the target device attached
+- `serial-*`: `pip install pyserial`, and the target device attached
   (use `usb-attach` first, then `serial-list` to find the port).
 
 ## Configuration (environment variables)
@@ -74,8 +72,8 @@ commands are passed via the required `--cmd` (nargs="+").
 ## Safety notes for agents
 
 - USB attach/detach runs elevated Windows commands via the win-admin helper.
-- `serial-shell`/`camera-*` execute commands on a live device over serial —
-  `camera-stop` and `camera-reboot` change device state immediately; confirm
+- `serial-shell` executes commands on a live device over serial — anything you
+  pass (e.g. `reboot`, killing a process) takes effect immediately; confirm
   before running against hardware you don't want disrupted.
 - `serial-login`/`serial-shell` transmit credentials over the serial line.
 

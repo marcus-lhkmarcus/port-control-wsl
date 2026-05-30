@@ -1,8 +1,9 @@
 # port-control-wsl
 
 > **TL;DR** — from inside **WSL2 (Linux)**: pass USB devices through to WSL
-> (`usbipd`), and drive **serial consoles** on embedded devices (cameras, SBCs)
-> — list ports, send commands, log in, run shells, all over `/dev/ttyUSB*`.
+> (`usbipd`), and drive **serial consoles** on embedded devices (SBCs, dev
+> boards, routers) — list COM ports, send commands, log in, run shells, all
+> over `/dev/ttyUSB*`.
 
 > 🤖 **AI agents:** see [AGENTS.md](AGENTS.md) for a machine-readable invocation
 > guide and [llms.txt](llms.txt) for a quick index.
@@ -14,8 +15,8 @@ Two jobs in one tool, aimed at embedded development from WSL2:
    keep-bound for fast re-attach).
 2. **Serial console** — open the resulting `/dev/ttyUSB*` (or native `/dev/ttyS*`),
    send one-off commands, stream output, log into an embedded Linux console, or
-   run a sequence of commands non-interactively. Includes convenience shortcuts
-   for Ingenic-based IP cameras (stop/start the app, reboot).
+   run a sequence of commands non-interactively (`serial-shell` — your general
+   COM-port SSH-style remote shell for any serial device).
 
 ```bash
 python3 port_control.py usb-attach 6-3
@@ -27,11 +28,11 @@ python3 port_control.py usb-detach 6-3
 
 - Windows 10/11 with WSL2
 - Python 3.7+ inside WSL
-- **For serial/camera commands:** `pip install -r requirements.txt` (pyserial)
+- **For serial commands:** `pip install -r requirements.txt` (pyserial)
 - **For USB attach/detach:** [usbipd-win](https://github.com/dorssel/usbipd-win)
   on Windows, plus the **[wsl-win-admin-bridge](https://github.com/marcusice/wsl-win-admin-bridge)**
   helper (the first `usbipd bind` needs admin rights, obtained through it).
-  `usb-list` and all serial/camera commands work **without** win-admin.
+  `usb-list` and all serial commands work **without** win-admin.
 
 Point at the win-admin helper via the `WIN_ADMIN` env var, or place its
 `win_admin.py` next to this script / in a sibling `wsl-win-admin-bridge/` checkout.
@@ -78,20 +79,9 @@ python3 port_control.py serial-shell /dev/ttyUSB0 --user root --cmd "uname -a" "
 Serial options: `--baud` (default 115200), `--user`/`--password` (login),
 `--wait` (per-command read window), `--json`.
 
-### Camera shortcuts (Ingenic IPC)
-
-Convenience wrappers for Ingenic-based IP cameras. Default to
-`--port /dev/ttyUSB0 --user root --baud 115200`.
-
-```bash
-python3 port_control.py camera-stop     # kill ipc_app + grab watchdog fd (device stays up, shell ready)
-python3 port_control.py camera-start    # relaunch /mnt/mtd/ipc_app
-python3 port_control.py camera-reboot   # reboot the device
-```
-
-`camera-stop` kills `ipc_app` and immediately busy-loops to claim the watchdog
-file descriptor the instant it's released — on these cameras, killing the app
-without holding the watchdog causes an immediate hardware reboot.
+Device-specific actions (reboot, kill a process, start an app) are just commands
+you pass to `serial-shell` — e.g. `serial-shell /dev/ttyUSB0 --cmd "reboot"` —
+so no per-device subcommands are needed.
 
 ## Configuration
 

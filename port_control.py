@@ -3,7 +3,7 @@
 port_control.py — USB passthrough (usbipd) + serial port control for WSL2.
 
 Manages USB device binding between Windows and WSL, and provides serial
-console access for embedded devices (cameras, SBCs, etc.).
+console access for embedded devices (SBCs, dev boards, routers, etc.).
 
 Usage:
     python3 port_control.py usb-list
@@ -12,7 +12,7 @@ Usage:
     python3 port_control.py serial-list
     python3 port_control.py serial-send /dev/ttyUSB0 "ls -la"
     python3 port_control.py serial-login /dev/ttyUSB0 --user root
-    python3 port_control.py serial-shell /dev/ttyUSB0 --user root --cmd "killall ipc_app"
+    python3 port_control.py serial-shell /dev/ttyUSB0 --user root --cmd "uname -a" "df -h"
 """
 
 import argparse
@@ -39,7 +39,7 @@ def admin_cmd(commands, wait=3):
     """Run an elevated Windows command via the win-admin helper.
 
     Only USB bind/attach/detach needs admin rights, so the dependency is loaded
-    lazily — serial and camera commands work without win-admin installed.
+    lazily — the serial commands work without win-admin installed.
 
     Requires win_admin.py from the companion project:
         https://github.com/marcusice/wsl-win-admin-bridge
@@ -306,12 +306,11 @@ def _get_serial(port, baud=None):
     """Open a serial port with DTR/RTS held low.
 
     Important: pyserial's default open asserts DTR and RTS. On some FTDI-based
-    cables (e.g. the Ingenic IPC dev cable) those lines are wired to board
-    signals that, when asserted, corrupt the camera's UART input — sending `\\r`
-    arrives at U-Boot as 5–10 bytes of framing-error garbage and every command
-    is rejected as `Unknown command '...'`. Observed on an Ingenic IPC dev cable
-    while recovering from u-boot. Explicitly dropping DTR/RTS produces a clean
-    line and is harmless for cables that don't wire them.
+    dev cables those lines are wired to board signals (e.g. reset/boot) that,
+    when asserted, corrupt the device's UART input — a bare `\\r` can arrive at a
+    U-Boot prompt as several bytes of framing-error garbage, so every command is
+    rejected as `Unknown command '...'`. Explicitly dropping DTR/RTS produces a
+    clean line and is harmless for cables that don't wire those lines.
     """
     import serial as pyserial
     s = pyserial.Serial()
@@ -532,107 +531,6 @@ def cmd_serial_shell(args):
     return 0
 
 
-def cmd_camera_stop(args):
-    """Stop camera app: kill ipc_app + disable watchdog (Ingenic devices)."""
-    ser = _get_serial(args.port, args.baud)
-    time.sleep(0.5)
-
-    # Flush
-    while ser.in_waiting:
-        ser.read(ser.in_waiting)
-        time.sleep(0.1)
-
-    # Login
-    for _ in range(3):
-        ser.write(b"\r\n")
-        time.sleep(0.2)
-    ser.write(f"{args.user}\r\n".encode())
-    time.sleep(0.5)
-
-    data = ser.read(ser.in_waiting or 2000)
-    text = data.decode("utf-8", errors="replace")
-    if "Password:" in text or "password:" in text:
-        ser.write(f"{args.password or ''}\r\n".encode())
-        time.sleep(0.5)
-
-    # Flush
-    while ser.in_waiting:
-        ser.read(ser.in_waiting)
-        time.sleep(0.1)
-
-    # Kill ipc_app then busy-loop to grab watchdog fd the instant it's released
-    print("Killing ipc_app and stopping watchdog...")
-    ser.write(b"killall -9 ipc_app; while ! echo -V > /dev/watchdog0 2>/dev/null; do true; done; echo WATCHDOG_STOPPED\r\n")
-    time.sleep(10)
-
-    data = b""
-    while ser.in_waiting:
-        data += ser.read(ser.in_waiting)
-        time.sleep(0.3)
-    text = data.decode("utf-8", errors="replace")
-
-    if "WATCHDOG_STOPPED" in text:
-        print("ipc_app killed and watchdog stopped. Device is ready.")
-        log(f"Camera stopped on {args.port}")
-    else:
-        print("Result unclear. Output:")
-        print(text[-500:])
-
-    # Verify quiet
-    time.sleep(3)
-    remaining = ser.read(2000)
-    if not remaining:
-        print("Device is quiet.")
-    else:
-        rtext = remaining.decode("utf-8", errors="replace")
-        if "login:" in rtext or "AICWFDBG" in rtext:
-            print("WARNING: Device may have rebooted")
-        elif "ivs_PD" in rtext or "ipc_app" in rtext:
-            print("WARNING: ipc_app may still be running")
-
-    ser.close()
-    return 0
-
-
-def cmd_camera_start(args):
-    """Restart camera app (run ipc_app)."""
-    ser = _get_serial(args.port, args.baud)
-    time.sleep(0.5)
-
-    while ser.in_waiting:
-        ser.read(ser.in_waiting)
-        time.sleep(0.1)
-
-    # Just send the start command — assume already logged in
-    ser.write(b"/mnt/mtd/ipc_app &\r\n")
-    time.sleep(3)
-
-    data = ser.read(ser.in_waiting or 2000)
-    text = data.decode("utf-8", errors="replace")
-    print("ipc_app started.")
-    print(text[-300:])
-
-    ser.close()
-    return 0
-
-
-def cmd_camera_reboot(args):
-    """Reboot the camera device."""
-    ser = _get_serial(args.port, args.baud)
-    time.sleep(0.5)
-
-    while ser.in_waiting:
-        ser.read(ser.in_waiting)
-        time.sleep(0.1)
-
-    ser.write(b"reboot\r\n")
-    time.sleep(2)
-    print("Reboot command sent.")
-
-    ser.close()
-    return 0
-
-
 # ── CLI ──────────────────────────────────────────────────────
 
 
@@ -683,21 +581,6 @@ def main():
     p.add_argument("--baud", type=int, default=DEFAULT_BAUD)
     p.add_argument("--json", action="store_true")
 
-    # Camera-specific commands
-    p = sub.add_parser("camera-stop", help="Kill ipc_app + stop watchdog (Ingenic camera)")
-    p.add_argument("--port", default="/dev/ttyUSB0")
-    p.add_argument("--user", default="root")
-    p.add_argument("--password", default="")
-    p.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-
-    p = sub.add_parser("camera-start", help="Start ipc_app on camera")
-    p.add_argument("--port", default="/dev/ttyUSB0")
-    p.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-
-    p = sub.add_parser("camera-reboot", help="Reboot camera device")
-    p.add_argument("--port", default="/dev/ttyUSB0")
-    p.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -712,9 +595,6 @@ def main():
         "serial-read": cmd_serial_read,
         "serial-login": cmd_serial_login,
         "serial-shell": cmd_serial_shell,
-        "camera-stop": cmd_camera_stop,
-        "camera-start": cmd_camera_start,
-        "camera-reboot": cmd_camera_reboot,
     }
     return commands[args.command](args) or 0
 
