@@ -1,0 +1,40 @@
+# port-control-wsl
+
+> From inside WSL2 (Linux): pass USB devices through to WSL with usbipd, and
+> drive serial consoles on embedded devices (cameras, SBCs) over /dev/ttyUSB* —
+> list ports, send commands, stream output, log in, run shells. Includes
+> shortcuts for Ingenic IP cameras (stop/start the app, reboot). Aimed at
+> embedded development from WSL2.
+
+Keywords: WSL, WSL2, usbipd, USB passthrough, USB/IP, serial port, serial
+console, /dev/ttyUSB0, ttyUSB, FTDI, CH340, CP210x, pyserial, UART, embedded,
+SBC, Ingenic, IP camera, IPC, U-Boot, BusyBox, COM port, Windows, DTR, RTS,
+Linux-to-Windows.
+
+## Docs
+
+- [README](README.md): Overview, requirements, full command list (USB + serial + camera), configuration, DTR/RTS note, security notes.
+- [AGENTS.md](AGENTS.md): Machine-readable guide for AI agents — exact commands, deps, preconditions, safety.
+
+## Code
+
+- [port_control.py](port_control.py): The whole tool. CLI subcommands: `usb-list`, `usb-attach`, `usb-detach`, `serial-list`, `serial-send`, `serial-read`, `serial-login`, `serial-shell`, `camera-stop`, `camera-start`, `camera-reboot`.
+- [requirements.txt](requirements.txt): `pyserial` (serial/camera commands only).
+
+## Dependencies
+
+- pyserial — for the serial-* and camera-* commands (not needed for usb-*).
+- usbipd-win (https://github.com/dorssel/usbipd-win) — for USB passthrough on Windows.
+- [wsl-win-admin-bridge](https://github.com/marcusice/wsl-win-admin-bridge): provides `win_admin.py`, used for the elevated `usbipd bind` in usb-attach/usb-detach. Loaded lazily; set `WIN_ADMIN` to its path. usb-list and serial/camera commands don't need it.
+
+## Quick start
+
+- `pip install -r requirements.txt`
+- `python3 port_control.py usb-list` → find the bus ID
+- `python3 port_control.py usb-attach 6-3` → attach to WSL
+- `python3 port_control.py serial-shell /dev/ttyUSB0 --user root --cmd "uname -a"`
+
+## Notes
+
+- `_get_serial()` clears DTR/RTS after open — some FTDI dev cables corrupt the device UART otherwise.
+- Default baud 115200; serial helpers tuned for BusyBox-style embedded consoles.

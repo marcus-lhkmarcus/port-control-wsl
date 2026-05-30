@@ -1,0 +1,3 @@
+# Required only for the serial-* and camera-* commands.
+# The usb-* commands work without it.
+pyserial
