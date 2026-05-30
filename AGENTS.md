@@ -23,7 +23,7 @@ Dependencies:
 - `pyserial` — needed for `serial-*`. Not needed for `usb-*`.
 - `usbipd-win` (Windows) + the win-admin helper — needed for `usb-attach` /
   `usb-detach` (the elevated `usbipd bind`). `win_admin.py` from
-  https://github.com/marcusice/wsl-win-admin-bridge, located via the `WIN_ADMIN`
+  https://github.com/marcus-lhkmarcus/wsl-win-admin-bridge, located via the `WIN_ADMIN`
   env var / next to this script / sibling checkout / $HOME. Loaded lazily, so the
   other commands run without it.
 

@@ -25,7 +25,7 @@ Linux-to-Windows.
 
 - pyserial — for the serial-* commands (not needed for usb-*).
 - usbipd-win (https://github.com/dorssel/usbipd-win) — for USB passthrough on Windows.
-- [wsl-win-admin-bridge](https://github.com/marcusice/wsl-win-admin-bridge): provides `win_admin.py`, used for the elevated `usbipd bind` in usb-attach/usb-detach. Loaded lazily; set `WIN_ADMIN` to its path. usb-list and serial commands don't need it.
+- [wsl-win-admin-bridge](https://github.com/marcus-lhkmarcus/wsl-win-admin-bridge): provides `win_admin.py`, used for the elevated `usbipd bind` in usb-attach/usb-detach. Loaded lazily; set `WIN_ADMIN` to its path. usb-list and serial commands don't need it.
 
 ## Quick start
 

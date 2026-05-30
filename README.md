@@ -30,7 +30,7 @@ python3 port_control.py usb-detach 6-3
 - Python 3.7+ inside WSL
 - **For serial commands:** `pip install -r requirements.txt` (pyserial)
 - **For USB attach/detach:** [usbipd-win](https://github.com/dorssel/usbipd-win)
-  on Windows, plus the **[wsl-win-admin-bridge](https://github.com/marcusice/wsl-win-admin-bridge)**
+  on Windows, plus the **[wsl-win-admin-bridge](https://github.com/marcus-lhkmarcus/wsl-win-admin-bridge)**
   helper (the first `usbipd bind` needs admin rights, obtained through it).
   `usb-list` and all serial commands work **without** win-admin.
 

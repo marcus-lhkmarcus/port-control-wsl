@@ -42,7 +42,7 @@ def admin_cmd(commands, wait=3):
     lazily — the serial commands work without win-admin installed.
 
     Requires win_admin.py from the companion project:
-        https://github.com/marcusice/wsl-win-admin-bridge
+        https://github.com/marcus-lhkmarcus/wsl-win-admin-bridge
     Found via WIN_ADMIN env var, a copy next to this script, a sibling checkout,
     or one under $HOME.
     """
@@ -58,7 +58,7 @@ def admin_cmd(commands, wait=3):
         raise SystemExit(
             "ERROR: win_admin.py helper not found (needed for USB bind/attach).\n"
             "Install wsl-win-admin-bridge "
-            "(https://github.com/marcusice/wsl-win-admin-bridge) and either place\n"
+            "(https://github.com/marcus-lhkmarcus/wsl-win-admin-bridge) and either place\n"
             "win_admin.py next to this script or set the WIN_ADMIN env var to its path."
         )
     sys.path.insert(0, str(Path(found).resolve().parent))
